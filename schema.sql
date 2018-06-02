@@ -2,12 +2,10 @@
 -- student database already exists
 -- init user already exists
 
-REVOKE ALL PRIVILEGES ON DATABASE student FROM app;
 REVOKE ALL PRIVILEGES ON TABLE users FROM app;
+REVOKE ALL PRIVILEGES ON DATABASE student FROM app;
 DROP USER IF EXISTS app;
 DROP TABLE IF EXISTS users;
-
-
 
 CREATE TABLE users(
     id bigint primary key not null, 

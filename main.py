@@ -49,12 +49,14 @@ class JanuszeXAPI:
         self.conn.close()
 
     def initialize_db(self):
-        with self.conn.cursor() as cursor:
-            cursor.execute(open("schema.sql", "r").read())
+        with self.conn.cursor() as c:
+            c.execute(open("schema.sql", "r").read())
             self.conn.commit()
 
     def authenticate(self, login, password):
         # hash + salt compare
+        with self.conn.cursor() as c:
+            pass
         return False
 
     def api_return(self, status, data=None):
@@ -82,6 +84,8 @@ class JanuszeXAPI:
         return self.api_return("OK")
 
     def new(self, args):
+        with self.conn.cursor() as c:
+            pass
         return self.api_return("OK")
 
     def remove(self, args):
