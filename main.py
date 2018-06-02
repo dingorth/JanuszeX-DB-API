@@ -11,7 +11,8 @@ import codecs
 
 # https://www.digitalocean.com/community/tutorials/how-to-install-and-use-postgresql-on-ubuntu-16-04
 # http://www.davejsaunders.com/2016/11/10/user-authentication-with-postgres.html
-
+# https://www.meetspaceapp.com/2016/04/12/passwords-postgresql-pgcrypto.html
+# https://x-team.com/blog/storing-secure-passwords-with-postgresql/
 '''
 Two users:
     - init: 
@@ -20,11 +21,6 @@ Two users:
         * cannot modify DB schema
         * can only modify data (INSERT, UPDATE, DELETE, SELECT)
 '''
-
-def make_hash(pt_password):
-    salt = secrets.token_bytes(16)
-    hashed_salted_pass_hex = hashlib.sha256(pt_password + salt).hexdigest()
-    return (salt.hex(), hashed_salted_pass_hex)
 
 class JanuszeXAPI:
     conn = None
@@ -54,7 +50,7 @@ class JanuszeXAPI:
             self.conn.commit()
 
     def authenticate(self, login, password):
-        # hash + salt compare
+        # SELECT * FROM users WHERE email = lower('nick@example.com') AND password = crypt('12345', password);
         with self.conn.cursor() as c:
             pass
         return False
@@ -84,6 +80,7 @@ class JanuszeXAPI:
         return self.api_return("OK")
 
     def new(self, args):
+        # INSERT INTO users (email, password) VALUES ('nick@example.com', crypt('12345', gen_salt('bf', 8)));
         with self.conn.cursor() as c:
             pass
         return self.api_return("OK")
