@@ -15,7 +15,7 @@ DROP TABLE IF EXISTS users;
 CREATE TABLE users(
     id int primary key not null, 
     parent int references users(id) on delete cascade,
-    root_path int[],
+    root_path int[] not null,
     data text, 
     passwd_h text not null
 );
@@ -27,28 +27,32 @@ GRANT SELECT, INSERT, UPDATE, REFERENCES ON TABLE users TO app;
 
 -- FUNCTIONS
 
+CREATE OR REPLACE FUNCTION get_root_path(int) RETURNS int[] AS
+$X$
+BEGIN
+	select root_path from users where id=$1;
+END
+$X$ LANGUAGE SQL STABLE;
 -- ancestors
 
 
 
 
 -- TRIGGERS
--- CZY TO MA BYĆ TRIGGER CZY MOŻE FUNKCJA JAKO DEFAULT VALUE ????
--- on insert to users update root_path
+
+
+-- Don't execute on root node.
+-- Root node shouldn't have root_path empty
+-- but should have NULL parent
 CREATE OR REPLACE FUNCTION update_root_path() RETURNS TRIGGER AS
 $X$
 DECLARE
-	parent_root_path int[]
 BEGIN
-	-- uwaga na roota
-	select root_path into parent_root_path from users where NEW.parent=id;
-
-
-
+	NEW.root_path := array_append(get_root_path(NEW.parent, NEW.id)
 	RETURN NEW;
 END
 $X$ LANGUAGE plpgsql;
 
 
 CREATE TRIGGER on_insert_to_users AFTER INSERT ON users
-FOR EACH ROW EXECUTE PROCEDURE update_root_path();
+FOR EACH ROW WHEN (NEW.parent is not NULL) EXECUTE PROCEDURE update_root_path();

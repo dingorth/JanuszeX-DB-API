@@ -74,7 +74,8 @@ class JanuszeXAPI:
 
     def root(self, args):
         with self.conn.cursor() as c:
-            a = "INSERT INTO users(id, parent,root_path,data, passwd_hash, salt) VALUES (0, NULL, '', 'lubie placki', 'qwerty' ,'abc');"
+            # make root_path not empty
+            a = "INSERT INTO users(id, parent,root_path,data, passwd_hash, salt) VALUES (0, NULL, {0}, 'lubie placki', 'qwerty' ,'abc');"
             c.execute(a)
             self.conn.commit()
         return self.api_return("OK")
