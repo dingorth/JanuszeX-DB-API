@@ -27,32 +27,29 @@ GRANT SELECT, INSERT, UPDATE, REFERENCES ON TABLE users TO app;
 
 -- FUNCTIONS
 
+-- get root path of user with specified id
 CREATE OR REPLACE FUNCTION get_root_path(int) RETURNS int[] AS
 $X$
-BEGIN
 	select root_path from users where id=$1;
-END
 $X$ LANGUAGE SQL STABLE;
--- ancestors
+
 
 
 
 
 -- TRIGGERS
 
-
 -- Don't execute on root node.
 -- Root node shouldn't have root_path empty
 -- but should have NULL parent
 CREATE OR REPLACE FUNCTION update_root_path() RETURNS TRIGGER AS
 $X$
-DECLARE
 BEGIN
-	NEW.root_path := array_append(get_root_path(NEW.parent, NEW.id)
+	NEW.root_path := array_append(get_root_path(NEW.parent), NEW.id);
 	RETURN NEW;
 END
 $X$ LANGUAGE plpgsql;
 
 
-CREATE TRIGGER on_insert_to_users AFTER INSERT ON users
+CREATE TRIGGER on_insert_to_users BEFORE INSERT ON users
 FOR EACH ROW WHEN (NEW.parent is not NULL) EXECUTE PROCEDURE update_root_path();
