@@ -12,6 +12,15 @@ import codecs
 # https://www.digitalocean.com/community/tutorials/how-to-install-and-use-postgresql-on-ubuntu-16-04
 # http://www.davejsaunders.com/2016/11/10/user-authentication-with-postgres.html
 
+'''
+Two users:
+    - init: 
+        * can modify DB schema
+    - app:
+        * cannot modify DB schema
+        * can only modify data (INSERT, UPDATE, DELETE, SELECT)
+'''
+
 def make_hash(pt_password):
     salt = secrets.token_bytes(16)
     hashed_salted_pass_hex = hashlib.sha256(pt_password + salt).hexdigest()
@@ -19,6 +28,7 @@ def make_hash(pt_password):
 
 class JanuszeXAPI:
     conn = None
+    need_db_init = False
 
     def __init__(self, need_db_init=False):
         self.need_db_init = need_db_init
@@ -41,6 +51,7 @@ class JanuszeXAPI:
     def initialize_db(self):
         with self.conn.cursor() as cursor:
             cursor.execute(open("schema.sql", "r").read())
+            self.conn.commit()
 
     def authenticate(self, login, password):
         # hash + salt compare
@@ -53,7 +64,7 @@ class JanuszeXAPI:
         r['data'] = data
         return r
 
-    ''' KorpoX API calls begin here '''
+    ''' JanuszeX API calls begin here '''
 
     def open(self, args):
         self.connect(args['login'], args['password'], args['baza'])
@@ -64,6 +75,10 @@ class JanuszeXAPI:
 
 
     def root(self, args):
+        with self.conn.cursor() as c:
+            a = "INSERT INTO users(id, parent,root_path,data, passwd_hash, salt) VALUES (0, NULL, '', 'lubie placki', 'qwerty' ,'abc');"
+            c.execute(a)
+            self.conn.commit()
         return self.api_return("OK")
 
     def new(self, args):
@@ -96,17 +111,13 @@ class JanuszeXAPI:
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='JanuszeX DB API')
-    parser.add_argument('-init', action='store_true', help='initialize database')
+    parser.add_argument('-init', action='store_true', help='initialize database', default=False)
 
     args = parser.parse_args()
-
-    if args.init:
-        init_db = True
-
-    api = JanuszeXAPI(init_db)
+    api = JanuszeXAPI(args.init)
 
     for line in sys.stdin:
         cmd = json.loads(line)
         cmd_name = list(cmd.keys())[0]
-        rtn = getattr(api, cmd_name)(cmd[cmd_name]) # albo api.api_call(command_type, command[command_type]) 
+        rtn = getattr(api, cmd_name)(cmd[cmd_name]) # albo rtn = api.api_call(command_type, command[command_type]) 
         print(rtn)
