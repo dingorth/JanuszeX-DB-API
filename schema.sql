@@ -25,6 +25,8 @@ GRANT CONNECT ON DATABASE student to app;
 GRANT SELECT, INSERT, UPDATE, REFERENCES ON TABLE users TO app;
 
 
+
+
 -- FUNCTIONS
 
 -- get root path of user with specified id
