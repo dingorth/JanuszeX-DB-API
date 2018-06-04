@@ -45,11 +45,11 @@ class JanuszeXAPI:
             c.execute(open("schema.sql", "r").read())
             self.conn.commit()
 
-    def authenticate(self, id, password):
+    def authenticate(self, id, passwd):
         with self.conn.cursor() as c:
             c.execute("""SELECT * FROM users WHERE id = %s and passwd_h = crypt(%s, passwd_h)""",
-                         (id, password))
-            if c.rowcount == 1:
+                         (id, passwd))
+            if c.rowcount == 1: # rowcount is almost impossible to be > 1
                 return True
         return False
 
@@ -104,7 +104,7 @@ class JanuszeXAPI:
         if not self.authenticate(args['admin'], args['passwd']):
             return self.api_return("ERROR")
         
-        if not self._no_auth_ancestor({"emp1" : args["emp1"], "emp2": args["admin"]}):
+        if not self._no_auth_ancestor(args["emp1"], args["admin"], reflexive=True):
             return self.api_return("ERROR")
 
         with self.conn.cursor() as c:
@@ -128,7 +128,7 @@ class JanuszeXAPI:
         if not self.authenticate(args['admin'], args['passwd']):
             return self.api_return("ERROR")
 
-        if not self._no_auth_ancestor({"emp1": args['emp'], "emp2": args['admin']}):
+        if not self._no_auth_ancestor(args['emp'], args['admin']):
             return self.api_return("ERROR")
 
         with self.conn.cursor() as c:
@@ -164,7 +164,11 @@ class JanuszeXAPI:
     tabela data powinna zawierać kolejne wartości <emp>"""
 
     def ancestors(self, args):
-        return self.api_return("OK")
+        if not self.authenticate(args['admin'], args['passwd']):
+            return self.api_return("ERROR")
+        with self.conn.cursor() as c:
+            c.execute("""SELECT get_ancestors(%s)""", (args['emp'],))
+            return self.api_return("OK", data=c.fetchall())
 
 
     """descendants <admin> <passwd> <emp> 
@@ -174,12 +178,18 @@ class JanuszeXAPI:
     tabela data powinna zawierać kolejne wartości <emp>"""
 
     def descendants(self, args):
-        return self.api_return("OK")
-
-    def _no_auth_ancestor(self, args):
+        if not self.authenticate(args['admin'], args['passwd']):
+            return self.api_return("ERROR")
         with self.conn.cursor() as c:
-            c.execute("""SELECT get_ancestors(%s) @> get_ancestors(%s)""",
-                         (args['emp1'], args['emp2']))
+            c.execute("""SELECT get_descendants(%s)""", (args['emp'],))
+            return self.api_return("OK", data=c.fetchall())
+
+
+    def _no_auth_ancestor(self, emp1, emp2, reflexive=False):
+        if emp1 == emp2 and reflexive:
+            return True
+        with self.conn.cursor() as c:
+            c.execute("""SELECT is_ancestor(%s, %s)""", (emp1, emp2))
             return c.fetchone()[0]
 
 
@@ -192,7 +202,7 @@ class JanuszeXAPI:
         if not self.authenticate(args['admin'], args['passwd']):
             return self.api_return("ERROR")
 
-        is_ancestor = self._no_auth_ancestor(args)        
+        is_ancestor = self._no_auth_ancestor(args['emp1'], args['emp2'])
 
         return self.api_return("OK", data=is_ancestor)
 

@@ -1,9 +1,5 @@
--- Wykonaj caly ten plik przy tworzeniu bazy.
 -- student database already exists
 -- init user already exists
-
--- https://www.postgresql.org/docs/9.1/static/functions-array.html
--- array contains, is contained by
 
 -- CREATE EXTENSION pgcrypto;
 
@@ -19,7 +15,8 @@ CREATE TABLE users(
     data varchar(100), 
     passwd_h text not null
 );
--- Root node should have empty ancestors and NULL parent
+-- root node should have empty ancestors and NULL parent
+-- ancestor and descendant relations are not reflexive
 
 CREATE USER app WITH ENCRYPTED PASSWORD 'qwerty';
 GRANT CONNECT ON DATABASE student to app;
@@ -30,13 +27,22 @@ GRANT SELECT, INSERT, UPDATE, REFERENCES ON TABLE users TO app;
 
 -- FUNCTIONS
 
--- get root path of user with specified id
 CREATE OR REPLACE FUNCTION get_ancestors(int) RETURNS int[] AS
 $X$
 	select ancestors from users where id=$1;
 $X$ LANGUAGE SQL STABLE;
 
+-- czy $1 podlega $2
+CREATE OR REPLACE FUNCTION is_ancestor(int,int) RETURNS boolean AS
+$X$
+	select array_append(get_ancestors($1), $1)  @> array_append(get_ancestors($2), $2) and $1 <> $2;
+$X$ LANGUAGE SQL STABLE;
 
+
+CREATE OR REPLACE FUNCTION get_descendants(int) RETURNS SETOF int AS 
+$X$
+	select id from users where is_ancestor(id, $1);
+$X$ LANGUAGE SQL STABLE;
 
 
 
