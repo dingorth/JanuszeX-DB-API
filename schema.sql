@@ -19,6 +19,7 @@ CREATE TABLE users(
     data varchar(100), 
     passwd_h text not null
 );
+-- Root node should have empty ancestors and NULL parent
 
 CREATE USER app WITH ENCRYPTED PASSWORD 'qwerty';
 GRANT CONNECT ON DATABASE student to app;
@@ -42,12 +43,10 @@ $X$ LANGUAGE SQL STABLE;
 -- TRIGGERS
 
 -- Don't execute on root node.
--- Root node shouldn't have root_path empty
--- but should have NULL parent
 CREATE OR REPLACE FUNCTION update_ancestors() RETURNS TRIGGER AS
 $X$
 BEGIN
-	NEW.ancestors := array_append(get_ancestors(NEW.parent), NEW.id);
+	NEW.ancestors := array_append(get_ancestors(NEW.parent), NEW.parent);
 	RETURN NEW;
 END
 $X$ LANGUAGE plpgsql;

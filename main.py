@@ -87,8 +87,8 @@ class JanuszeXAPI:
         with self.conn.cursor() as c:
             # check for secret value, and check status
             c.execute("""INSERT INTO users(id, parent, ancestors, data, passwd_h) 
-                         VALUES (%s, NULL, '{%s}', %s, crypt(%s, gen_salt('bf')) ) """,
-                         (args['emp'], args['emp'], args['data'], args['newpasswd']))
+                         VALUES (%s, NULL, '{}', %s, crypt(%s, gen_salt('bf')) ) """,
+                         (args['emp'], args['data'], args['newpasswd']))
             self.conn.commit()
         return self.api_return("OK")
 
