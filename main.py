@@ -86,7 +86,7 @@ class JanuszeXAPI:
     def root(self, args):
         with self.conn.cursor() as c:
             # check for secret value, and check status
-            c.execute("""INSERT INTO users(id, parent, root_path, data, passwd_h) 
+            c.execute("""INSERT INTO users(id, parent, ancestors, data, passwd_h) 
                          VALUES (%s, NULL, '{%s}', %s, crypt(%s, gen_salt('bf')) ) """,
                          (args['emp'], args['emp'], args['data'], args['newpasswd']))
             self.conn.commit()
@@ -178,7 +178,7 @@ class JanuszeXAPI:
 
     def _no_auth_ancestor(self, args):
         with self.conn.cursor() as c:
-            c.execute("""SELECT get_root_path(%s) @> get_root_path(%s)""",
+            c.execute("""SELECT get_ancestors(%s) @> get_ancestors(%s)""",
                          (args['emp1'], args['emp2']))
             return c.fetchone()[0]
 
