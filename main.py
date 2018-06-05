@@ -4,10 +4,6 @@ import psycopg2
 import sys
 import argparse
 
-# https://www.digitalocean.com/community/tutorials/how-to-install-and-use-postgresql-on-ubuntu-16-04
-# http://www.davejsaunders.com/2016/11/10/user-authentication-with-postgres.html
-# https://www.meetspaceapp.com/2016/04/12/passwords-postgresql-pgcrypto.html
-# https://x-team.com/blog/storing-secure-passwords-with-postgresql/
 '''
 Two users:
     - init: 
@@ -16,8 +12,6 @@ Two users:
         * cannot modify DB schema
         * can only modify data (INSERT, UPDATE, DELETE, SELECT)
 '''
-
-# czy uzytkownik sam jest swoim ancestorem?
 
 class JanuszeXAPI:
     conn = None
