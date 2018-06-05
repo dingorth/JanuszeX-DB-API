@@ -70,7 +70,7 @@ class JanuszeXAPI:
     zwraca status OK/ERROR w zależności od tego czy udało się nawiązać połączenie z bazą"""
 
     def open(self, args):
-        self.connect(args['login'], args['password'], args['baza'])
+        self.connect(args['login'], args['password'], args['database'])
         if self.need_db_init:
             self.initialize_db()
             self.need_db_init = False
@@ -88,7 +88,7 @@ class JanuszeXAPI:
             # check for secret value, and check status
             c.execute("""INSERT INTO users(id, parent, ancestors, data, passwd_h) 
                          VALUES (%s, NULL, '{}', %s, crypt(%s, gen_salt('bf')) ) """,
-                         (args['emp'], args['data'], args['newpasswd']))
+                         (args['emp'], args['data'], args['newpassword']))
             self.conn.commit()
         return self.api_return("OK")
 
@@ -145,7 +145,11 @@ class JanuszeXAPI:
     tabela data powinna zawierać kolejne wartości <emp>"""
 
     def child(self, args):
-        return self.api_return("OK")
+        if not self.authenticate(args['admin'], args['passwd']):
+            return self.api_return("ERROR")
+        with self.conn.cursor() as c:
+            c.execute("""SELECT id from users where parent=%s""", (args['emp'],))
+            return self.api_return("OK", data=c.fetchall())
 
 
     """parent <admin> <passwd> <emp> 
@@ -154,7 +158,11 @@ class JanuszeXAPI:
     tabela data powinna zawierać dokładnie jedną wartość <emp>"""
 
     def parent(self, args):
-        return self.api_return("OK")
+        if not self.authenticate(args['admin'], args['passwd']):
+            return self.api_return("ERROR")
+        with self.conn.cursor() as c:
+            c.execute("""SELECT parent from users where id=%s""", (args['emp'],))
+            return self.api_return("OK", data=c.fetchall())
 
 
     """ancestors <admin> <passwd> <emp> 
@@ -214,7 +222,15 @@ class JanuszeXAPI:
     tabela data powinna dokładnie jedną wartość <data>"""
 
     def read(self, args):
-        return self.api_return("OK")
+        if not self.authenticate(args['admin'], args['passwd']):
+            return self.api_return("ERROR")
+
+        if not self._no_auth_ancestor(args["emp"], args["admin"], reflexive=True):
+            return self.api_return("ERROR")
+
+        with self.conn.cursor() as c:
+            c.execute("""SELECT data from users where id=%s""", (args['emp'],))
+            return self.api_return("OK", data=c.fetchall())
 
 
     """update <admin> <passwd> <emp> <newdata>
@@ -224,7 +240,15 @@ class JanuszeXAPI:
     nie zwraca danych"""
 
     def update(self, args):
-        return self.api_return("OK")
+        if not self.authenticate(args['admin'], args['passwd']):
+            return self.api_return("ERROR")
+
+        if not self._no_auth_ancestor(args["emp"], args["admin"], reflexive=True):
+            return self.api_return("ERROR")
+
+        with self.conn.cursor() as c:
+            c.execute("""UPDATE users SET data=%s WHERE id=%s""", (args['newdata'], args['emp'],))
+            return self.api_return("OK", data=c.fetchall())
 
 if __name__ == "__main__":
 
