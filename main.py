@@ -24,12 +24,9 @@ class JanuszeXAPI:
         return getattr(self, name)(args)
 
     def connect(self, login, password, db_name):
-        try:
-            connect_str = "dbname='{}' user='{}' host='{}' password='{}'" \
-                .format(db_name, login, 'localhost', password)
-            self.conn = psycopg2.connect(connect_str)
-        except Exception as e:
-            print(e)
+        connect_str = "dbname='{}' user='{}' host='{}' password='{}'".format(
+            db_name, login, 'localhost', password)
+        self.conn = psycopg2.connect(connect_str)
 
     def disconnect(self):
         self.conn.close()
@@ -47,11 +44,12 @@ class JanuszeXAPI:
                 return True
         return False
 
-    def api_return(self, status, data=None):
+    def api_return(self, status, data=None, debug=None):
         r = { 'status' : status }
-        if data == None:
-            return  r
-        r['data'] = data
+        if data != None:
+            r['data'] = data
+        if debug != None:
+            r['debug'] = debug
         return r
 
 
@@ -64,11 +62,15 @@ class JanuszeXAPI:
     zwraca status OK/ERROR w zależności od tego czy udało się nawiązać połączenie z bazą"""
 
     def open(self, args):
-        self.connect(args['login'], args['password'], args['database'])
-        if self.need_db_init:
-            self.initialize_db()
-            self.need_db_init = False
-        return self.api_return("OK")
+        try:
+            self.connect(args['login'], args['password'], args['database'])
+            if self.need_db_init:
+                self.initialize_db()
+                self.need_db_init = False
+            return self.api_return("OK")
+        except Exception as e:
+            return self.api_return("ERROR", debug=str(e))
+
 
 
     """root <secret> <newpassword> <data> <emp>
@@ -78,13 +80,17 @@ class JanuszeXAPI:
     zwraca status OK/ERROR"""
 
     def root(self, args):
-        with self.conn.cursor() as c:
-            # check for secret value, and check status
-            c.execute("""INSERT INTO users(id, parent, ancestors, data, passwd_h) 
-                         VALUES (%s, NULL, '{}', %s, crypt(%s, gen_salt('bf')) ) """,
-                         (args['emp'], args['data'], args['newpassword']))
-            self.conn.commit()
-        return self.api_return("OK")
+        try:
+            if args['secret'] != 'qwerty':
+                self.api_return("ERROR", debug='wrong secret')
+            with self.conn.cursor() as c:
+                c.execute("""INSERT INTO users(id, parent, ancestors, data, passwd_h) 
+                             VALUES (%s, NULL, '{}', %s, crypt(%s, gen_salt('bf')) ) """,
+                             (args['emp'], args['data'], args['newpassword']))
+                self.conn.commit()
+            return self.api_return("OK")
+        except Exception as e:
+            return self.api_return("ERROR", debug=str(e))
 
 
     """new <admin> <passwd> <data> <newpasswd> <emp1> <emp> 
@@ -95,19 +101,22 @@ class JanuszeXAPI:
     nie zwraca danych"""
 
     def new(self, args):
-        if not self.authenticate(args['admin'], args['passwd']):
-            return self.api_return("ERROR")
-        
-        if not self._no_auth_ancestor(args["emp1"], args["admin"], reflexive=True):
-            return self.api_return("ERROR")
+        try:
+            if not self.authenticate(args['admin'], args['passwd']):
+                return self.api_return("ERROR", debug="wrong password")
+            
+            if not self._no_auth_ancestor(args["emp1"], args["admin"], reflexive=True):
+                return self.api_return("ERROR", debug="this user can't do that action")
 
-        with self.conn.cursor() as c:
-            c.execute("""INSERT INTO users(id, parent, data, passwd_h)
-                         VALUES (%s, %s, %s, crypt(%s, gen_salt('bf')) )""",
-                         (args['emp'], args['emp1'], args['data'], args['newpasswd']))
+            with self.conn.cursor() as c:
+                c.execute("""INSERT INTO users(id, parent, data, passwd_h)
+                             VALUES (%s, %s, %s, crypt(%s, gen_salt('bf')) )""",
+                             (args['emp'], args['emp1'], args['data'], args['newpasswd']))
 
-        self.conn.commit()
-        return self.api_return("OK")
+            self.conn.commit()
+            return self.api_return("OK")
+        except Exception as e:
+            return self.api_return("ERROR", debug=str(e))
 
 
     """remove <admin> <passwd> <emp>
@@ -119,18 +128,20 @@ class JanuszeXAPI:
     nie zwraca danych"""
 
     def remove(self, args):
-        if not self.authenticate(args['admin'], args['passwd']):
-            return self.api_return("ERROR")
+        try:
+            if not self.authenticate(args['admin'], args['passwd']):
+                return self.api_return("ERROR", debug="wrong password")
 
-        if not self._no_auth_ancestor(args['emp'], args['admin']):
-            return self.api_return("ERROR")
+            if not self._no_auth_ancestor(args['emp'], args['admin']):
+                return self.api_return("ERROR", debug="this user can't do that action")
 
-        with self.conn.cursor() as c:
-            c.execute("""DELETE from users where id = %s""",
-                         (args['emp']))
+            with self.conn.cursor() as c:
+                c.execute("""DELETE from users where id = %s""", (args['emp'],))
 
-        self.conn.commit()
-        return self.api_return("OK")
+            self.conn.commit()
+            return self.api_return("OK")
+        except Exception as e:
+            self.api_return("ERROR", debug=str(e))
 
 
     """child <admin> <passwd> <emp>
@@ -139,11 +150,14 @@ class JanuszeXAPI:
     tabela data powinna zawierać kolejne wartości <emp>"""
 
     def child(self, args):
-        if not self.authenticate(args['admin'], args['passwd']):
-            return self.api_return("ERROR")
-        with self.conn.cursor() as c:
-            c.execute("""SELECT id from users where parent=%s""", (args['emp'],))
-            return self.api_return("OK", data=c.fetchall())
+        try:
+            if not self.authenticate(args['admin'], args['passwd']):
+                return self.api_return("ERROR", debug="wrong password")
+            with self.conn.cursor() as c:
+                c.execute("""SELECT id from users where parent=%s""", (args['emp'],))
+                return self.api_return("OK", data=c.fetchall())
+        except Exception as e:
+            return self.api_return("ERROR", debug=str(e))
 
 
     """parent <admin> <passwd> <emp> 
@@ -152,12 +166,14 @@ class JanuszeXAPI:
     tabela data powinna zawierać dokładnie jedną wartość <emp>"""
 
     def parent(self, args):
-        if not self.authenticate(args['admin'], args['passwd']):
-            return self.api_return("ERROR")
-        with self.conn.cursor() as c:
-            c.execute("""SELECT parent from users where id=%s""", (args['emp'],))
-            return self.api_return("OK", data=c.fetchall())
-
+        try:
+            if not self.authenticate(args['admin'], args['passwd']):
+                return self.api_return("ERROR", debug="wrong password")
+            with self.conn.cursor() as c:
+                c.execute("""SELECT parent from users where id=%s""", (args['emp'],))
+                return self.api_return("OK", data=c.fetchall())
+        except Exception as e:
+            return self.api_return("ERROR", debug=str(e))
 
     """ancestors <admin> <passwd> <emp> 
     zwraca identyfikatory wszystkich pracowników, którym <emp> pośrednio lub 
@@ -166,11 +182,14 @@ class JanuszeXAPI:
     tabela data powinna zawierać kolejne wartości <emp>"""
 
     def ancestors(self, args):
-        if not self.authenticate(args['admin'], args['passwd']):
-            return self.api_return("ERROR")
-        with self.conn.cursor() as c:
-            c.execute("""SELECT get_ancestors(%s)""", (args['emp'],))
-            return self.api_return("OK", data=c.fetchall())
+        try:
+            if not self.authenticate(args['admin'], args['passwd']):
+                return self.api_return("ERROR", debug="wrong password")
+            with self.conn.cursor() as c:
+                c.execute("""SELECT get_ancestors(%s)""", (args['emp'],))
+                return self.api_return("OK", data=c.fetchall())
+        except Exception as e:
+            return self.api_return("ERROR", debug=str(e))
 
 
     """descendants <admin> <passwd> <emp> 
@@ -180,11 +199,14 @@ class JanuszeXAPI:
     tabela data powinna zawierać kolejne wartości <emp>"""
 
     def descendants(self, args):
-        if not self.authenticate(args['admin'], args['passwd']):
-            return self.api_return("ERROR")
-        with self.conn.cursor() as c:
-            c.execute("""SELECT get_descendants(%s)""", (args['emp'],))
-            return self.api_return("OK", data=c.fetchall())
+        try:
+            if not self.authenticate(args['admin'], args['passwd']):
+                return self.api_return("ERROR", debug="wrogn password")
+            with self.conn.cursor() as c:
+                c.execute("""SELECT get_descendants(%s)""", (args['emp'],))
+                return self.api_return("OK", data=c.fetchall())
+        except Exception as e:
+            self.api_return("ERROR", debug=str(e))
 
 
     def _no_auth_ancestor(self, emp1, emp2, reflexive=False):
@@ -201,12 +223,15 @@ class JanuszeXAPI:
     tabela data powinna zawierać dokładnie jedną wartość: true albo false"""
 
     def ancestor(self, args):
-        if not self.authenticate(args['admin'], args['passwd']):
-            return self.api_return("ERROR")
+        try:
+            if not self.authenticate(args['admin'], args['passwd']):
+                return self.api_return("ERROR", debug="wrong password")
 
-        is_ancestor = self._no_auth_ancestor(args['emp1'], args['emp2'])
+            is_ancestor = self._no_auth_ancestor(args['emp1'], args['emp2'])
 
-        return self.api_return("OK", data=is_ancestor)
+            return self.api_return("OK", data=is_ancestor)
+        except Exception as e:
+            return self.api_return("ERROR", debug=str(e))
 
 
     """read <admin> <passwd> <emp>
@@ -216,15 +241,18 @@ class JanuszeXAPI:
     tabela data powinna dokładnie jedną wartość <data>"""
 
     def read(self, args):
-        if not self.authenticate(args['admin'], args['passwd']):
-            return self.api_return("ERROR")
+        try:
+            if not self.authenticate(args['admin'], args['passwd']):
+                return self.api_return("ERROR", debug="wrong password")
 
-        if not self._no_auth_ancestor(args["emp"], args["admin"], reflexive=True):
-            return self.api_return("ERROR")
+            if not self._no_auth_ancestor(args["emp"], args["admin"], reflexive=True):
+                return self.api_return("ERROR", debug="this user can't do that action")
 
-        with self.conn.cursor() as c:
-            c.execute("""SELECT data from users where id=%s""", (args['emp'],))
-            return self.api_return("OK", data=c.fetchall())
+            with self.conn.cursor() as c:
+                c.execute("""SELECT data from users where id=%s""", (args['emp'],))
+                return self.api_return("OK", data=c.fetchall())
+        except:
+            return self.api_return("ERROR", debug=str(e))
 
 
     """update <admin> <passwd> <emp> <newdata>
@@ -234,15 +262,18 @@ class JanuszeXAPI:
     nie zwraca danych"""
 
     def update(self, args):
-        if not self.authenticate(args['admin'], args['passwd']):
-            return self.api_return("ERROR")
+        try:
+            if not self.authenticate(args['admin'], args['passwd']):
+                return self.api_return("ERROR", debug="wrong password")
 
-        if not self._no_auth_ancestor(args["emp"], args["admin"], reflexive=True):
-            return self.api_return("ERROR")
+            if not self._no_auth_ancestor(args["emp"], args["admin"], reflexive=True):
+                return self.api_return("ERROR", debug="this user can't do that action")
 
-        with self.conn.cursor() as c:
-            c.execute("""UPDATE users SET data=%s WHERE id=%s""", (args['newdata'], args['emp'],))
-            return self.api_return("OK", data=c.fetchall())
+            with self.conn.cursor() as c:
+                c.execute("""UPDATE users SET data=%s WHERE id=%s""", (args['newdata'], args['emp'],))
+                return self.api_return("OK", data=c.fetchall())
+        except Exception as e:
+            return self.api_return("ERROR", debug=str(e))
 
 if __name__ == "__main__":
 
