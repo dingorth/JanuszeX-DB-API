@@ -137,11 +137,11 @@ class JanuszeXAPI:
 
             with self.conn.cursor() as c:
                 c.execute("""DELETE from users where id = %s""", (args['emp'],))
+                self.conn.commit()
+                return self.api_return("OK")
 
-            self.conn.commit()
-            return self.api_return("OK")
         except Exception as e:
-            self.api_return("ERROR", debug=str(e))
+            return self.api_return("ERROR", debug=str(e))
 
 
     """child <admin> <passwd> <emp>
@@ -155,7 +155,8 @@ class JanuszeXAPI:
                 return self.api_return("ERROR", debug="wrong password")
             with self.conn.cursor() as c:
                 c.execute("""SELECT id from users where parent=%s""", (args['emp'],))
-                return self.api_return("OK", data=c.fetchall())
+                d = list(map(lambda x:x[0], c.fetchall()))
+                return self.api_return("OK", data=d)
         except Exception as e:
             return self.api_return("ERROR", debug=str(e))
 
@@ -171,7 +172,7 @@ class JanuszeXAPI:
                 return self.api_return("ERROR", debug="wrong password")
             with self.conn.cursor() as c:
                 c.execute("""SELECT parent from users where id=%s""", (args['emp'],))
-                return self.api_return("OK", data=c.fetchall())
+                return self.api_return("OK", data=c.fetchall()[0][0])
         except Exception as e:
             return self.api_return("ERROR", debug=str(e))
 
@@ -187,7 +188,7 @@ class JanuszeXAPI:
                 return self.api_return("ERROR", debug="wrong password")
             with self.conn.cursor() as c:
                 c.execute("""SELECT get_ancestors(%s)""", (args['emp'],))
-                return self.api_return("OK", data=c.fetchall())
+                return self.api_return("OK", data=c.fetchall()[0][0])
         except Exception as e:
             return self.api_return("ERROR", debug=str(e))
 
@@ -204,7 +205,8 @@ class JanuszeXAPI:
                 return self.api_return("ERROR", debug="wrogn password")
             with self.conn.cursor() as c:
                 c.execute("""SELECT get_descendants(%s)""", (args['emp'],))
-                return self.api_return("OK", data=c.fetchall())
+                d = list(map(lambda x:x[0], c.fetchall()))
+                return self.api_return("OK", data=d)
         except Exception as e:
             self.api_return("ERROR", debug=str(e))
 
@@ -250,7 +252,7 @@ class JanuszeXAPI:
 
             with self.conn.cursor() as c:
                 c.execute("""SELECT data from users where id=%s""", (args['emp'],))
-                return self.api_return("OK", data=c.fetchall())
+                return self.api_return("OK", data=c.fetchall()[0][0])
         except:
             return self.api_return("ERROR", debug=str(e))
 
@@ -265,15 +267,14 @@ class JanuszeXAPI:
         try:
             if not self.authenticate(args['admin'], args['passwd']):
                 return self.api_return("ERROR", debug="wrong password")
-
             if not self._no_auth_ancestor(args["emp"], args["admin"], reflexive=True):
                 return self.api_return("ERROR", debug="this user can't do that action")
 
             with self.conn.cursor() as c:
                 c.execute("""UPDATE users SET data=%s WHERE id=%s""", (args['newdata'], args['emp'],))
-                return self.api_return("OK", data=c.fetchall())
+                return self.api_return("OK")
         except Exception as e:
-            return self.api_return("ERROR", debug=str(e))
+            return self.api_return("ERROR", debug="{}, {}".format(str(e), type(e)))
 
 if __name__ == "__main__":
 
@@ -283,8 +284,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
     api = JanuszeXAPI(args.init)
 
-    for line in sys.stdin:
+    for nr, line in enumerate(sys.stdin):
         cmd = json.loads(line)
         cmd_name = list(cmd.keys())[0]
         rtn = getattr(api, cmd_name)(cmd[cmd_name]) # albo rtn = api.api_call(command_type, command[command_type]) 
-        print(rtn)
+        print('{}: {}'.format(nr+1, rtn))
