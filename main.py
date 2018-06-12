@@ -40,9 +40,9 @@ class JanuszeXAPI:
         with self.conn.cursor() as c:
             c.execute("""SELECT * FROM users WHERE id = %s and passwd_h = crypt(%s, passwd_h)""",
                          (id, passwd))
-            if c.rowcount == 1: # rowcount is almost impossible to be > 1
+            if c.rowcount == 1:
                 return True
-        return False
+            return False
 
     def api_return(self, status, data=None, debug=None):
         r = { 'status' : status }
@@ -51,6 +51,20 @@ class JanuszeXAPI:
         if debug != None:
             r['debug'] = debug
         return r
+
+    def user_exists(self, id):
+        with self.conn.cursor() as c:
+            c.execute("""SELECT * FROM users WHERE id = %s""", (id,))
+            if c.rowcount == 1:
+                return True
+            return False
+
+    def users_exist(self, id1, id2):
+        with self.conn.cursor() as c:
+            c.execute("""SELECT * from users WHERE id = %s or id = %s""", (id1, id2))
+            if c.rowcount == 2:
+                return True
+            return False
 
 
     ''' JanuszeX API calls begin here '''
@@ -154,6 +168,8 @@ class JanuszeXAPI:
         try:
             if not self.authenticate(args['admin'], args['passwd']):
                 return self.api_return("ERROR", debug="wrong password")
+            if not self.user_exists(args['emp']):
+                return self.api_return("ERROR", debug="user doesn't exists")
             with self.conn.cursor() as c:
                 c.execute("""SELECT id from users where parent=%s""", (args['emp'],))
                 d = list(map(lambda x:x[0], c.fetchall()))
@@ -185,6 +201,8 @@ class JanuszeXAPI:
 
     def ancestors(self, args):
         try:
+            if not self.user_exists(args['emp']):
+                return self.api_return("ERROR", debug="user doesn't exists")
             if not self.authenticate(args['admin'], args['passwd']):
                 return self.api_return("ERROR", debug="wrong password")
             with self.conn.cursor() as c:
@@ -204,6 +222,8 @@ class JanuszeXAPI:
         try:
             if not self.authenticate(args['admin'], args['passwd']):
                 return self.api_return("ERROR", debug="wrogn password")
+            if not self.user_exists(args['emp']):
+                return self.api_return("ERROR", debug="user doesn't exists")
             with self.conn.cursor() as c:
                 c.execute("""SELECT get_descendants(%s)""", (args['emp'],))
                 d = list(map(lambda x:x[0], c.fetchall()))
@@ -229,6 +249,9 @@ class JanuszeXAPI:
         try:
             if not self.authenticate(args['admin'], args['passwd']):
                 return self.api_return("ERROR", debug="wrong password")
+
+            if not self.users_exist(args['emp'], args['emp1']):
+                return self.api_return("ERROR", debug="users doesn't exist")
 
             is_ancestor = self._no_auth_ancestor(args['emp1'], args['emp2'])
 
