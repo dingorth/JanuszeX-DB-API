@@ -4,9 +4,13 @@
 DO
 $do$
 BEGIN
-IF EXISTS (SELECT * FROM pg_roles where rolname='app') THEN
-   REVOKE ALL PRIVILEGES ON TABLE users FROM app;
-   REVOKE ALL PRIVILEGES ON DATABASE student FROM app;
+IF EXISTS (SELECT 1 FROM pg_roles where rolname='app') THEN
+
+    IF EXISTS (select 1 from information_schema.tables where table_name='users') THEN
+        REVOKE ALL PRIVILEGES ON TABLE users FROM app;
+    END IF;
+
+    REVOKE ALL PRIVILEGES ON DATABASE student FROM app;
 
 END IF;
 END
