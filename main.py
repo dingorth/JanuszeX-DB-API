@@ -59,13 +59,6 @@ class JanuszeXAPI:
                 return True
             return False
 
-    def users_exist(self, id1, id2):
-        with self.conn.cursor() as c:
-            c.execute("""SELECT * from users WHERE id = %s or id = %s""", (id1, id2))
-            if c.rowcount == 2:
-                return True
-            return False
-
 
     ''' JanuszeX API calls begin here '''
 
@@ -147,6 +140,9 @@ class JanuszeXAPI:
             if not self.authenticate(args['admin'], args['passwd']):
                 return self.api_return("ERROR", debug="wrong password")
 
+            if not self.user_exists(args['emp']):
+                return self.api_return("ERROR", debug="user doesn't exists")
+
             if not self._no_auth_ancestor(args['emp'], args['admin']):
                 return self.api_return("ERROR", debug="this user can't do that action")
 
@@ -187,6 +183,8 @@ class JanuszeXAPI:
         try:
             if not self.authenticate(args['admin'], args['passwd']):
                 return self.api_return("ERROR", debug="wrong password")
+            if not self.user_exists(args['emp']):
+                return self.api_return("ERROR", debug="user doesn't exists")
             with self.conn.cursor() as c:
                 c.execute("""SELECT parent from users where id=%s""", (args['emp'],))
                 return self.api_return("OK", data=c.fetchall()[0][0])
@@ -250,8 +248,10 @@ class JanuszeXAPI:
             if not self.authenticate(args['admin'], args['passwd']):
                 return self.api_return("ERROR", debug="wrong password")
 
-            if not self.users_exist(args['emp'], args['emp1']):
-                return self.api_return("ERROR", debug="users doesn't exist")
+            if not self.user_exists(args['emp1']):
+                return self.api_return("ERROR", debug="user doesn't exist")
+            if not self.user_exists(args['emp2']):
+                return self.api_return("ERROR", debug="user doesn't exist")
 
             is_ancestor = self._no_auth_ancestor(args['emp1'], args['emp2'])
 
@@ -271,13 +271,16 @@ class JanuszeXAPI:
             if not self.authenticate(args['admin'], args['passwd']):
                 return self.api_return("ERROR", debug="wrong password")
 
+            if not self.user_exists(args['emp']):
+                return self.api_return("ERROR", debug="user doesn't exists")
+
             if not self._no_auth_ancestor(args["emp"], args["admin"], reflexive=True):
                 return self.api_return("ERROR", debug="this user can't do that action")
 
             with self.conn.cursor() as c:
                 c.execute("""SELECT data from users where id=%s""", (args['emp'],))
                 return self.api_return("OK", data=c.fetchall()[0][0])
-        except:
+        except Exception as e:
             return self.api_return("ERROR", debug=str(e))
 
 
@@ -296,6 +299,7 @@ class JanuszeXAPI:
 
             with self.conn.cursor() as c:
                 c.execute("""UPDATE users SET data=%s WHERE id=%s""", (args['newdata'], args['emp'],))
+                self.conn.commit()
                 return self.api_return("OK")
         except Exception as e:
             return self.api_return("ERROR", debug="{}, {}".format(str(e), type(e)))
