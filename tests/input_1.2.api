@@ -1,0 +1,4 @@
+{ "open": { "database": "student", "login": "app", "password": "qwerty"}}
+{ "descendants": { "admin": 1, "passwd": "1337_h4x0r", "emp": 0 } }
+{ "ancestor": { "admin": 1, "passwd": "1337_h4x0r", "emp1": 1, "emp2": 0 } }
+{ "ancestors": { "admin": 1, "passwd": "1337_h4x0r", "emp": 1 } }
