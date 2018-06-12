@@ -111,7 +111,8 @@ class JanuszeXAPI:
             with self.conn.cursor() as c:
                 c.execute("""INSERT INTO users(id, parent, data, passwd_h)
                              VALUES (%s, %s, %s, crypt(%s, gen_salt('bf')) )""",
-                             (args['emp'], args['emp1'], args['data'], args['newpasswd']))
+                             (args['emp'], args['emp1'], args['data'] if 'data' in args else None,
+                              args['newpasswd']))
 
             self.conn.commit()
             return self.api_return("OK")
@@ -287,5 +288,6 @@ if __name__ == "__main__":
     for nr, line in enumerate(sys.stdin):
         cmd = json.loads(line)
         cmd_name = list(cmd.keys())[0]
-        rtn = getattr(api, cmd_name)(cmd[cmd_name]) # albo rtn = api.api_call(command_type, command[command_type]) 
+        rtn = getattr(api, cmd_name)(cmd[cmd_name]) 
+        # albo rtn = api.api_call(command_type, command[command_type]) 
         print('{}: {}'.format(nr+1, rtn))
