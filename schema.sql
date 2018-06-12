@@ -1,10 +1,17 @@
 -- student database already exists
 -- init user already exists
 
--- CREATE EXTENSION pgcrypto;
+DO
+$do$
+BEGIN
+IF EXISTS (SELECT * FROM pg_roles where rolname='app') THEN
+   REVOKE ALL PRIVILEGES ON TABLE users FROM app;
+   REVOKE ALL PRIVILEGES ON DATABASE student FROM app;
 
-REVOKE ALL PRIVILEGES ON TABLE users FROM app;
-REVOKE ALL PRIVILEGES ON DATABASE student FROM app;
+END IF;
+END
+$do$;
+
 DROP USER IF EXISTS app;
 DROP TABLE IF EXISTS users;
 
@@ -20,7 +27,7 @@ CREATE TABLE users(
 
 CREATE USER app WITH ENCRYPTED PASSWORD 'qwerty';
 GRANT CONNECT ON DATABASE student to app;
-GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES ON TABLE users TO app; -- may want to delete REFERENCES
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES ON TABLE users TO app;
 
 
 

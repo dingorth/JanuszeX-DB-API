@@ -11,8 +11,8 @@ Więzy w tabeli będą wyglądały mniej więcej tak:
 `CREATE TABLE users(
     id int primary key not null, 
     parent int references users(id) on delete cascade,
-    root_path int[] not null,
-    data text, 
+    ancestors int[] not null,
+    data varchar(100), 
     passwd_h text not null
 );`
 
